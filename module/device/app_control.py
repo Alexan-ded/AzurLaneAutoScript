@@ -1,3 +1,5 @@
+import subprocess
+
 from lxml import etree
 
 from module.device.method.adb import Adb
@@ -25,6 +27,8 @@ class AppControl(Adb, WSA, Uiautomator2):
         return package == self.package
 
     def app_start(self):
+        subprocess.run(["waydroid", "app", "launch", "com.YoStarEN.AzurLane"])
+        return
         method = self.config.Emulator_ControlMethod
         logger.info(f'App start: {self.package}')
         if self.config.Emulator_Serial == 'wsa-0':

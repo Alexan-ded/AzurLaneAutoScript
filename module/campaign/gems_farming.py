@@ -427,10 +427,10 @@ class GemsFarming(CampaignRun, FleetEquipment, Dock):
                 if self.config.task_switched():
                     self.campaign.ensure_auto_search_exit()
                     self.config.task_stop()
-                elif not success:
-                    self.campaign.ensure_auto_search_exit()
-                    self.config.task_delay(minute=30)
-                    self.config.task_stop()
+                # elif not success:
+                #     self.campaign.ensure_auto_search_exit()
+                #     self.config.task_delay(minute=30)
+                #     self.config.task_stop()
 
                 continue
             else:

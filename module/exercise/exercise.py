@@ -1,30 +1,48 @@
+import subprocess
 from datetime import timedelta
+
 from module.config.utils import get_server_last_update
 from module.exercise.assets import *
 from module.exercise.combat import ExerciseCombat
+from module.handler.login import LoginHandler
 from module.logger import logger
+from module.notify import handle_notify
 from module.ocr.ocr import Digit, Ocr, OcrYuv
 from module.ui.page import page_exercise
 
 
 class DatedDuration(Ocr):
-    def __init__(self, buttons, lang='cnocr', letter=(255, 255, 255), threshold=128, alphabet='0123456789:IDS天日d',
-                 name=None):
-        super().__init__(buttons, lang=lang, letter=letter, threshold=threshold, alphabet=alphabet, name=name)
+    def __init__(
+        self,
+        buttons,
+        lang="cnocr",
+        letter=(255, 255, 255),
+        threshold=128,
+        alphabet="0123456789:IDS天日d",
+        name=None,
+    ):
+        super().__init__(
+            buttons,
+            lang=lang,
+            letter=letter,
+            threshold=threshold,
+            alphabet=alphabet,
+            name=name,
+        )
 
     def after_process(self, result):
         result = super().after_process(result)
-        result = result.replace('I', '1').replace('D', '0').replace('S', '5')
+        result = result.replace("I", "1").replace("D", "0").replace("S", "5")
         return result
 
     def ocr(self, image, direct_ocr=False):
         """
         Do OCR on a dated duration, such as `10d 01:30:30` or `7日01:30:30`.
-        
+
         Args:
             image:
             direct_ocr:
-            
+
         Returns:
             list, datetime.timedelta: timedelta object, or a list of it.
         """
@@ -39,19 +57,22 @@ class DatedDuration(Ocr):
     @staticmethod
     def parse_time(string):
         """
-        Args: 
+        Args:
             string (str): `10d 01:30:30` or `7日01:30:30`
-        
+
         Returns:
             datetime.timedelta:
         """
         import re
-        result = re.search(r'(\d{1,2})\D?(\d{1,2}):?(\d{2}):?(\d{2})', string)
+
+        result = re.search(r"(\d{1,2})\D?(\d{1,2}):?(\d{2}):?(\d{2})", string)
         if result:
             result = [int(s) for s in result.groups()]
-            return timedelta(days=result[0], hours=result[1], minutes=result[2], seconds=result[3])
+            return timedelta(
+                days=result[0], hours=result[1], minutes=result[2], seconds=result[3]
+            )
         else:
-            logger.warning(f'Invalid dated duration: {string}')
+            logger.warning(f"Invalid dated duration: {string}")
             return timedelta(days=0, hours=0, minutes=0, seconds=0)
 
 
@@ -60,7 +81,9 @@ class DatedDurationYuv(DatedDuration, OcrYuv):
 
 
 OCR_EXERCISE_REMAIN = Digit(OCR_EXERCISE_REMAIN, letter=(173, 247, 74), threshold=128)
-OCR_PERIOD_REMAIN = DatedDuration(OCR_PERIOD_REMAIN, letter=(255, 255, 255), threshold=128)
+OCR_PERIOD_REMAIN = DatedDuration(
+    OCR_PERIOD_REMAIN, letter=(255, 255, 255), threshold=128
+)
 ADMIRAL_TRIAL_HOUR_INTERVAL = {
     # "aggressive": [336, 0]
     "sun18": [6, 0],
@@ -69,7 +92,7 @@ ADMIRAL_TRIAL_HOUR_INTERVAL = {
     "sat18": [30, 24],
     "sat12": [36, 30],
     "sat0": [48, 36],
-    "fri18": [56, 48]
+    "fri18": [56, 48],
 }
 
 
@@ -79,7 +102,7 @@ class Exercise(ExerciseCombat):
     preserve = 0
 
     def _new_opponent(self):
-        logger.info('New opponent')
+        logger.info("New opponent")
         self.appear_then_click(NEW_OPPONENT)
         self.opponent_change_count += 1
 
@@ -89,13 +112,13 @@ class Exercise(ExerciseCombat):
         self.ensure_no_info_bar(timeout=3)
 
     def _opponent_fleet_check_all(self):
-        if self.config.Exercise_OpponentChooseMode != 'leftmost':
+        if self.config.Exercise_OpponentChooseMode != "leftmost":
             super()._opponent_fleet_check_all()
 
     def _opponent_sort(self, method=None):
         if method is None:
             method = self.config.Exercise_OpponentChooseMode
-        if method != 'leftmost':
+        if method != "leftmost":
             return super()._opponent_sort(method=method)
         else:
             return [0, 1, 2, 3]
@@ -111,7 +134,7 @@ class Exercise(ExerciseCombat):
         self._opponent_fleet_check_all()
         while 1:
             for opponent in self._opponent_sort():
-                logger.hr(f'Opponent {opponent}', level=2)
+                logger.hr(f"Opponent {opponent}", level=2)
                 success = self._combat(opponent)
                 if success:
                     return success
@@ -136,7 +159,7 @@ class Exercise(ExerciseCombat):
         self._opponent_fleet_check_all()
         while 1:
             opponents = self._opponent_sort(method=method)
-            logger.hr(f'Opponent {opponents[0]}', level=2)
+            logger.hr(f"Opponent {opponents[0]}", level=2)
             self.config.override(Exercise_LowHpThreshold=threshold)
             success = self._combat(opponents[0])
             if success:
@@ -162,7 +185,7 @@ class Exercise(ExerciseCombat):
             int:
         """
         record = self.config.Exercise_OpponentRefreshRecord
-        update = get_server_last_update('00:00')
+        update = get_server_last_update("00:00")
         if record.date() == update.date():
             # Same Day
             return self.config.Exercise_OpponentRefreshValue
@@ -172,7 +195,7 @@ class Exercise(ExerciseCombat):
             return 0
 
     def server_support_ocr_reset_remain(self) -> bool:
-        return self.config.SERVER in ['cn', 'en', 'jp']
+        return self.config.SERVER in ["cn", "en", "jp"]
 
     def _get_exercise_reset_remain(self):
         """
@@ -193,57 +216,127 @@ class Exercise(ExerciseCombat):
             admiral_interval = None
         else:
             preserve = 5
-            admiral_interval = ADMIRAL_TRIAL_HOUR_INTERVAL[self.config.Exercise_ExerciseStrategy]
+            admiral_interval = ADMIRAL_TRIAL_HOUR_INTERVAL[
+                self.config.Exercise_ExerciseStrategy
+            ]
 
         return preserve, admiral_interval
 
+    def _modify_game(self, state):
+        subprocess.Popen(
+            [
+                "adb",
+                "shell",
+                f"cp /storage/emulated/0/Documents/{state}/Perseus.ini /storage/emulated/0/Android/data/com.YoStarEN.AzurLane/files/",
+            ]
+        )
+        logger.hr("App restart")
+        self.device.app_stop()
+        self.device.app_start()
+        LoginHandler(config=self.config, device=self.device).handle_app_login()
+
+    def _ensure_game_state(self, expected_state):
+        VANILLA_FALSE_COUNT = "43"
+        HACK_FALSE_COUNT = "12"
+        process = subprocess.Popen(
+            [
+                "adb",
+                "shell",
+                "grep -o false /storage/emulated/0/Android/data/com.YoStarEN.AzurLane/files/Perseus.ini | wc -l",
+            ],
+            stdout=subprocess.PIPE,
+        )
+        output, _ = process.communicate()
+        false_count = output.decode().strip()
+        if expected_state == "vanilla" and false_count == HACK_FALSE_COUNT:
+            logger.critical("YOU ARE FUCKED")
+            handle_notify(
+                self.config.Error_OnePushConfig,
+                title=f"Alas <{self.config_name}> crashed",
+                content=f"<{self.config_name}> Trying to run Exercise with hacks",
+            )
+            exit(1)
+        if expected_state == "hack" and false_count == VANILLA_FALSE_COUNT:
+            logger.critical("HACK IS NOT ACTIVE")
+            handle_notify(
+                self.config.Error_OnePushConfig,
+                title=f"Alas <{self.config_name}> crashed",
+                content=f"<{self.config_name}> Hack is not active after Exercise",
+            )
+            exit(1)
+        if false_count not in [VANILLA_FALSE_COUNT, HACK_FALSE_COUNT]:
+            logger.critical(f"UNKNOWN VALUE FOR false_count: {false_count}")
+            handle_notify(
+                self.config.Error_OnePushConfig,
+                title=f"Alas <{self.config_name}> crashed",
+                content=f"<{self.config_name}> Unknown value for false_count in Perseus.ini",
+            )
+            exit(1)
+        logger.info("Safety check passed!")
+
     def run(self):
+        self._modify_game("vanilla")
+        self._ensure_game_state("vanilla")
+
         self.ui_ensure(page_exercise)
 
         self.opponent_change_count = self._get_opponent_change_count()
         logger.attr("Change_opponent_count", self.opponent_change_count)
-        logger.attr('Exercise_ExerciseStrategy', self.config.Exercise_ExerciseStrategy)
+        logger.attr("Exercise_ExerciseStrategy", self.config.Exercise_ExerciseStrategy)
         self.preserve, admiral_interval = self._get_exercise_strategy()
 
         if not self.server_support_ocr_reset_remain():
-            logger.info(f'Server {self.config.SERVER} does not yet support OCR exercise reset remain time')
-            logger.info('Please contact the developer to improve as soon as possible')
+            logger.info(
+                f"Server {self.config.SERVER} does not yet support OCR exercise reset remain time"
+            )
+            logger.info("Please contact the developer to improve as soon as possible")
             remain_time = timedelta(days=0)
         else:
             remain_time = OCR_PERIOD_REMAIN.ocr(self.device.image)
-        logger.info(f'Exercise period remain: {remain_time}')
+        logger.info(f"Exercise period remain: {remain_time}")
 
         if admiral_interval is not None and remain_time:
             admiral_start, admiral_end = admiral_interval
 
-            if admiral_start > int(remain_time.total_seconds() // 3600) >= admiral_end:  # set time for getting admiral
-                logger.info('Reach set time for admiral trial, using all attempts.')
+            if (
+                admiral_start > int(remain_time.total_seconds() // 3600) >= admiral_end
+            ):  # set time for getting admiral
+                logger.info("Reach set time for admiral trial, using all attempts.")
                 self.preserve = 0
-            elif int(remain_time.total_seconds() // 3600) < 6:  # if not set to "sun18", still depleting at sunday 18pm.
-                logger.info('Exercise period remain less than 6 hours, using all attempts.')
+            elif (
+                int(remain_time.total_seconds() // 3600) < 6
+            ):  # if not set to "sun18", still depleting at sunday 18pm.
+                logger.info(
+                    "Exercise period remain less than 6 hours, using all attempts."
+                )
                 self.preserve = 0
             else:
-                logger.info(f'Preserve {self.preserve} exercise')
+                logger.info(f"Preserve {self.preserve} exercise")
 
         while 1:
             self.remain = OCR_EXERCISE_REMAIN.ocr(self.device.image)
             if self.remain <= self.preserve:
                 break
 
-            logger.hr(f'Exercise remain {self.remain}', level=1)
+            logger.hr(f"Exercise remain {self.remain}", level=1)
             if self.config.Exercise_OpponentChooseMode == "easiest_else_exp":
                 success = self._exercise_easiest_else_exp()
             else:
                 success = self._exercise_once()
             if not success:
-                logger.info('New opponent exhausted')
+                logger.info("New opponent exhausted")
                 break
 
         # self.equipment_take_off_when_finished()
 
+        self._modify_game("hack")
+        self._ensure_game_state("hack")
+
         # Scheduler
         with self.config.multi_set():
-            self.config.set_record(Exercise_OpponentRefreshValue=self.opponent_change_count)
+            self.config.set_record(
+                Exercise_OpponentRefreshValue=self.opponent_change_count
+            )
             if self.remain <= self.preserve or self.opponent_change_count >= 5:
                 self.config.task_delay(server_update=True)
             else:
