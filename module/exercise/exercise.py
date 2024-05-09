@@ -276,7 +276,6 @@ class Exercise(ExerciseCombat):
 
     def run(self):
         self._modify_game("vanilla")
-        self._ensure_game_state("vanilla")
 
         self.ui_ensure(page_exercise)
 
@@ -319,6 +318,7 @@ class Exercise(ExerciseCombat):
                 break
 
             logger.hr(f"Exercise remain {self.remain}", level=1)
+            self._ensure_game_state("vanilla")
             if self.config.Exercise_OpponentChooseMode == "easiest_else_exp":
                 success = self._exercise_easiest_else_exp()
             else:
