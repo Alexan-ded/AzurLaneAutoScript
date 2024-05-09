@@ -11,7 +11,7 @@ from module.logger import logger
 
 class AppControl(Adb, WSA, Uiautomator2):
     hierarchy: etree._Element
-    _app_u2_family = ['uiautomator2', 'minitouch', 'scrcpy', 'MaaTouch', 'nemu_ipc']
+    _app_u2_family = ["uiautomator2", "minitouch", "scrcpy", "MaaTouch", "nemu_ipc"]
 
     def app_is_running(self) -> bool:
         method = self.config.Emulator_ControlMethod
@@ -22,25 +22,24 @@ class AppControl(Adb, WSA, Uiautomator2):
         else:
             package = self.app_current_adb()
 
-        package = package.strip(' \t\r\n')
-        logger.attr('Package_name', package)
+        package = package.strip(" \t\r\n")
+        logger.attr("Package_name", package)
         return package == self.package
 
     def app_start(self):
-        subprocess.run(["waydroid", "app", "launch", "com.YoStarEN.AzurLane"])
-        return
         method = self.config.Emulator_ControlMethod
-        logger.info(f'App start: {self.package}')
-        if self.config.Emulator_Serial == 'wsa-0':
+        logger.info(f"App start: {self.package}")
+        if self.config.Emulator_Serial == "wsa-0":
             self.app_start_wsa(display=0)
         elif method in AppControl._app_u2_family:
             self.app_start_uiautomator2()
         else:
             self.app_start_adb()
+        subprocess.Popen(["adb", "shell", "input", "keyevent", "KEYCODE_F11"])
 
     def app_stop(self):
         method = self.config.Emulator_ControlMethod
-        logger.info(f'App stop: {self.package}')
+        logger.info(f"App stop: {self.package}")
         if method in AppControl._app_u2_family:
             self.app_stop_uiautomator2()
         else:
