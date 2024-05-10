@@ -2,6 +2,7 @@ import subprocess
 from datetime import timedelta
 
 from module.config.utils import get_server_last_update
+from module.device.game_modification import GameModification
 from module.exercise.assets import *
 from module.exercise.combat import ExerciseCombat
 from module.handler.login import LoginHandler
@@ -222,60 +223,9 @@ class Exercise(ExerciseCombat):
 
         return preserve, admiral_interval
 
-    def _modify_game(self, state):
-        subprocess.Popen(
-            [
-                "adb",
-                "shell",
-                f"cp /storage/emulated/0/Documents/{state}/Perseus.ini /storage/emulated/0/Android/data/com.YoStarEN.AzurLane/files/",
-            ]
-        )
-        logger.hr("App restart")
-        self.device.app_stop()
-        self.device.app_start()
-        LoginHandler(config=self.config, device=self.device).handle_app_login()
-
-    def _ensure_game_state(self, expected_state):
-        VANILLA_FALSE_COUNT = "43"
-        HACK_FALSE_COUNT = "12"
-        process = subprocess.Popen(
-            [
-                "adb",
-                "shell",
-                "grep -o false /storage/emulated/0/Android/data/com.YoStarEN.AzurLane/files/Perseus.ini | wc -l",
-            ],
-            stdout=subprocess.PIPE,
-        )
-        output, _ = process.communicate()
-        false_count = output.decode().strip()
-        if expected_state == "vanilla" and false_count == HACK_FALSE_COUNT:
-            logger.critical("YOU ARE FUCKED")
-            handle_notify(
-                self.config.Error_OnePushConfig,
-                title=f"Alas <{self.config_name}> crashed",
-                content=f"<{self.config_name}> Trying to run Exercise with hacks",
-            )
-            exit(1)
-        if expected_state == "hack" and false_count == VANILLA_FALSE_COUNT:
-            logger.critical("HACK IS NOT ACTIVE")
-            handle_notify(
-                self.config.Error_OnePushConfig,
-                title=f"Alas <{self.config_name}> crashed",
-                content=f"<{self.config_name}> Hack is not active after Exercise",
-            )
-            exit(1)
-        if false_count not in [VANILLA_FALSE_COUNT, HACK_FALSE_COUNT]:
-            logger.critical(f"UNKNOWN VALUE FOR false_count: {false_count}")
-            handle_notify(
-                self.config.Error_OnePushConfig,
-                title=f"Alas <{self.config_name}> crashed",
-                content=f"<{self.config_name}> Unknown value for false_count in Perseus.ini",
-            )
-            exit(1)
-        logger.info("Safety check passed!")
-
     def run(self):
-        self._modify_game("vanilla")
+        game_modification = GameModification(self.config, self.device)
+        game_modification.change_game_state("vanilla")
 
         self.ui_ensure(page_exercise)
 
@@ -318,7 +268,7 @@ class Exercise(ExerciseCombat):
                 break
 
             logger.hr(f"Exercise remain {self.remain}", level=1)
-            self._ensure_game_state("vanilla")
+            game_modification.ensure_game_state("vanilla")
             if self.config.Exercise_OpponentChooseMode == "easiest_else_exp":
                 success = self._exercise_easiest_else_exp()
             else:
@@ -329,8 +279,8 @@ class Exercise(ExerciseCombat):
 
         # self.equipment_take_off_when_finished()
 
-        self._modify_game("hack")
-        self._ensure_game_state("hack")
+        game_modification.change_game_state("hack")
+        game_modification.ensure_game_state("hack")
 
         # Scheduler
         with self.config.multi_set():
