@@ -17,7 +17,7 @@ class GameModification:
                 f"cp /storage/emulated/0/Documents/{state}/Perseus.ini /storage/emulated/0/Android/data/com.YoStarEN.AzurLane/files/",
             ]
         )
-        logger.hr("App restart")
+        logger.hr(f"App restart, state: {state}")
         self.device.app_stop()
         self.device.app_start()
         LoginHandler(config=self.config, device=self.device).handle_app_login()
