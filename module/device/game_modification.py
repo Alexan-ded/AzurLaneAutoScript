@@ -56,7 +56,7 @@ class GameModification:
             handle_notify(
                 self.config.Error_OnePushConfig,
                 title=f"Alas <{self.config_name}> crashed",
-                content=f"<{self.config_name}> Unknown value for false_count in Perseus.ini",
+                content=f"<{self.config_name}> Unknown value for false_count in Perseus.ini: {false_count}",
             )
             exit(1)
-        logger.info("Safety check passed!")
+        logger.info(f"Safety check passed! State: {expected_state}")

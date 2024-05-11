@@ -148,6 +148,7 @@ class OpsiAshBeacon(Meta):
             return False
 
         # Attack
+        GameModification(self.config, self.device).ensure_game_state("vanilla")
         combat = AshCombat(config=self.config, device=self.device)
         combat.combat(
             expected_end=expected_end, save_get_items=False, emotion_reduce=False
@@ -664,6 +665,8 @@ class AshBeaconAssist(Meta):
         return self._attack_meta(skip_first_screenshot=False)
 
     def run(self):
+        game_modification = GameModification(self.config, self.device)
+        game_modification.change_game_state("vanilla")
         self.ui_ensure(page_reward)
 
         if self._begin_meta_assist():
@@ -671,3 +674,5 @@ class AshBeaconAssist(Meta):
             self.config.task_delay(server_update=True)
         else:
             self.config.task_delay(minute=(10, 20))
+        game_modification.change_game_state("hack")
+        game_modification.ensure_game_state("hack")
